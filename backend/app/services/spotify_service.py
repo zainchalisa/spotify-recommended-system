@@ -9,13 +9,15 @@ import requests
 load_dotenv()
 
 user_tokens= {}
+users_playlist = {}
+
 playlist_router = APIRouter(tags=["Spotify"])
 
 spotify_auth = SpotifyOAuth(
-    client_id= os.getenv("client_id"),
-    client_secret=os.getenv("client_secret"),
+    client_id= os.getenv("spotify_client_id"),
+    client_secret=os.getenv("spotify_client_secret"),
     redirect_uri=os.getenv("redirect_uri"),
-    scope='user-read-private user-read-email user-top-read')
+    scope='user-read-private user-read-email user-top-read user-library-read user-follow-read user-read-recently-played')
 
 @playlist_router.get("/login")
 def login():
@@ -88,7 +90,8 @@ def get_playlist_info(playlist_id: str):
            'artist_name': track_artist
        }
 
-
+    #saves the response to the global dict
+    users_playlist = response
     return {'response': response}
 
 @playlist_router.get("/user-top-tracks")
@@ -97,3 +100,45 @@ def get_users_top_tracks(time_range = 'short_term'):
     results = sp.current_user_top_tracks(time_range=time_range, limit=10)
     
     return {'top tracks': results}
+
+@playlist_router.get("/user-top-artists")
+def get_users_top_artists(time_range = 'short_term'):
+    sp, _ = get_client()
+    results = sp.current_user_top_artists(time_range=time_range, limit=10)
+    
+    return {'top artists': results}
+
+@playlist_router.get("/user-saved-tracks")
+def get_users_saved_tracks():
+    sp, _ = get_client()
+    results = sp.current_user_saved_tracks(limit=10)
+    
+    return {'saved tracks': results}
+
+@playlist_router.get("/user-following")
+def get_users_following():
+    sp, _ = get_client()
+    results = sp.current_user_following_artists(limit=10)
+    
+    return {'following': results}
+
+@playlist_router.get("/user-recently-played")
+def get_users_recently_played():
+    sp, _ = get_client()
+    results = sp.current_user_recently_played(limit=15)
+    
+    return {'recently played': results}
+
+@playlist_router.get("/track-info/{track_id}")
+def get_track_info(track_id: str):
+    sp, _ = get_client()
+    results = sp.track(track_id)
+    
+    return {'track info': results}
+
+@playlist_router.get('/artists-info/{artist_id}')
+def get_artists_genre(artist_id: str):
+    sp, _ = get_client()
+    results = sp.artist(artist_id)
+    
+    return {'artist genre': results}

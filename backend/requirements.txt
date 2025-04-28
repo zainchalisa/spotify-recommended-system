@@ -3,3 +3,10 @@ uvicorn
 spotipy
 python-dotenv
 requests
+pydantic 
+yt-dlp 
+librosa 
+numpy
+lyricsgenius
+transformers
+torch
