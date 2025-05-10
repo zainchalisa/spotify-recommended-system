@@ -7,6 +7,7 @@ from fastapi.encoders import jsonable_encoder
 from app.services.spotify_service import users_playlist
 from app.models.schema import SongRequest
 import subprocess
+from app.models.schema import AudioFeaturesResponse
 
 
 # i need to grab the stored tracks and artist details
@@ -68,7 +69,7 @@ def download_audio_snippet(song_name: str, artist_name: str):
         print(f"Error downloading or converting the song: {str(e)}")
         return None
 
-def extract_audio_features(file_path: str):
+def extract_audio_features(file_path: str) -> AudioFeaturesResponse:
     
     y, sr = librosa.load(file_path, sr=None, duration=30) 
     
@@ -84,15 +85,15 @@ def extract_audio_features(file_path: str):
 
     
     # need to convert elements before returning
-    return {
-        "key": int(key), 
-        "tempo": float(tempo),
-        "chroma": chroma.tolist(),
-        "mfcc": mfcc.tolist(),
-        "spectral_centroid": spectral_centroid.tolist(),
-        "spectral_bandwidth": spectral_bandwidth.tolist(),
-        "spectral_contrast": spectral_contrast.tolist()  
-    }
+    return AudioFeaturesResponse(
+        key = int(key), 
+        tempo =  float(tempo),
+        chroma =  chroma.tolist(),
+        mfcc = mfcc.tolist(),
+        spectral_centroid =  spectral_centroid.tolist(),
+        spectral_bandwidth =  spectral_bandwidth.tolist(),
+        spectral_contrast = spectral_contrast.tolist()  
+    )
 
 @audio_extraction_router.post("/extract_features")
 def extract_features(song_request: SongRequest):

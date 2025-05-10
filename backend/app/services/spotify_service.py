@@ -4,7 +4,8 @@ import os
 from fastapi import FastAPI, Request, APIRouter, HTTPException
 from fastapi.responses import RedirectResponse
 from dotenv import load_dotenv
-import requests
+from app.models.schema import Playlist, Track
+from typing import List
 
 load_dotenv()
 
@@ -52,93 +53,157 @@ def get_client():
     return sp, access_token
 
 
-@playlist_router.get("/playlists")
+@playlist_router.get("/playlists", response_model=List[Playlist])
 def get_playlists():
-
     sp, _ = get_client()
-    
     playlists = sp.current_user_playlists()
-    response = {}
-    for items in playlists['items']:
-        playlist_id = items['id']
-        playlist_name = items['name']
-        playlist_security = items['public']
+    
+    # Build a list of Playlist objects
+    response = [
+        Playlist(
+            id=items['id'],
+            name=items['name'],
+            privacy='public' if items['public'] else 'private'
+        )
+        for items in playlists['items']
+    ]
 
-        response[playlist_id] = {
-            'name': playlist_name,
-            'privacy': 'public' if playlist_security else 'private'
-        }
+    return response
 
-    return {'playlists': response}
-
-@playlist_router.get("/playlist/{playlist_id}")
+@playlist_router.get("/playlist/{playlist_id}", response_model=List[Track])
 def get_playlist_info(playlist_id: str):
-    
     sp, _ = get_client()
-    
     playlist_songs = sp.playlist_tracks(playlist_id)
-    response = {}
-    for items in playlist_songs['items']:
-       track = items['track']
-       
-       track_id = track['id']
-       track_name = track['name']
-       track_artist = track['artists'][0]['name'] 
+    
+    # Build a list of Track objects
+    response = [
+        Track(
+            id=track['id'],
+            name=track['name'],
+            artist_name=track['artists'][0]['name']
+        )
+        for track in [item['track'] for item in playlist_songs['items']]
+    ]
 
-       response[track_id] = {
-           'name': track_name,
-           'artist_name': track_artist
-       }
-
-    #saves the response to the global dict
-    users_playlist = response
-    return {'response': response}
+    return response
 
 @playlist_router.get("/user-top-tracks")
-def get_users_top_tracks(time_range = 'short_term'):
+def get_users_top_tracks(time_range: str = 'short_term'):
     sp, _ = get_client()
     results = sp.current_user_top_tracks(time_range=time_range, limit=10)
-    
-    return {'top tracks': results}
+
+    # Extract only the required fields
+    top_tracks = [
+        {
+            "id": track["id"],
+            "track_name": track["name"],
+            "artist_name": track["artists"][0]["name"],
+            "popularity": track["popularity"],
+            "duration_ms": track["duration_ms"],
+            "explicit": track["explicit"],
+            "preview_url": track["preview_url"]
+            }
+        for track in results["items"]
+    ]
+
+
+    return {"top_tracks": top_tracks}
 
 @playlist_router.get("/user-top-artists")
-def get_users_top_artists(time_range = 'short_term'):
+def get_users_top_artists(time_range: str = 'short_term'):
     sp, _ = get_client()
     results = sp.current_user_top_artists(time_range=time_range, limit=10)
-    
-    return {'top artists': results}
+
+    # Extract only the required fields
+    top_artists = [
+        {
+            "id": artist["id"],
+            "artist_name": artist["name"],
+            "genres": artist["genres"],
+            "popularity": artist["popularity"]
+        }
+        for artist in results["items"]
+    ]
+
+    return {"top_artists": top_artists}
 
 @playlist_router.get("/user-saved-tracks")
 def get_users_saved_tracks():
     sp, _ = get_client()
     results = sp.current_user_saved_tracks(limit=10)
-    
-    return {'saved tracks': results}
 
+    saved_tracks = [
+        {
+            "track_name": track["track"]["name"],
+            "artist_name": track["track"]["artists"][0]["name"]
+        }
+        for track in results["items"]
+    ]
+    
+    return {'saved tracks': saved_tracks}
 @playlist_router.get("/user-following")
 def get_users_following():
     sp, _ = get_client()
-    results = sp.current_user_following_artists(limit=10)
-    
-    return {'following': results}
+    results = sp.current_user_followed_artists(limit=10)
+
+    # Extract only the required fields
+    following_artists = [
+        {
+            "artist_name": artist["name"],
+            "genres": artist["genres"],
+            "popularity": artist["popularity"]
+        }
+        for artist in results["artists"]["items"]
+    ]
+
+    return {'following': following_artists}
 
 @playlist_router.get("/user-recently-played")
 def get_users_recently_played():
     sp, _ = get_client()
     results = sp.current_user_recently_played(limit=15)
+
+    user_recently_played = [
+        {
+            "track_name": item["track"]["name"],
+            "artist_name": item["track"]["artists"][0]["name"],
+            "played_at": item["played_at"]
+        }
+        for item in results["items"]
+    ]
     
-    return {'recently played': results}
+    return {'recently played': user_recently_played}
 
 @playlist_router.get("/track-info/{track_id}")
 def get_track_info(track_id: str):
     sp, _ = get_client()
     results = sp.track(track_id)
+
+    track_info = [
+        {
+            "track_name": results["name"],
+            "artist_name": results["artists"][0]["name"],
+            "album_name": results["album"]["name"],
+            "release_date": results["album"]["release_date"],
+            "popularity": results["popularity"],
+            "duration_ms": results["duration_ms"],
+            "explicit": results["explicit"]
+        }
+    ]
     
-    return {'track info': results}
+    return {'track info': track_info}
 
 @playlist_router.get('/artists-info/{artist_id}')
 def get_artists_genre(artist_id: str):
     sp, _ = get_client()
     results = sp.artist(artist_id)
+
+    artist_genre = [
+        {
+            "artist_name": results["name"],
+            "genres": results["genres"],
+            "popularity": results["popularity"]
+        }
+    ]
     
-    return {'artist genre': results}
+    return {'artist genre': artist_genre}
